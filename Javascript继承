@@ -1,0 +1,142 @@
+# Javascript继承
+
+标签（空格分隔）： javascript
+
+---
+[toc]
+##原型链
+- 每个**构造函数**都有一个**原型对象**（Prototype）
+- **构造函数**的`prototype`属性指向**原型对象**，**原型对象**的`constructor`属性指向**构造函数**（这样他们就建立联系了，你认识我，我认识你了）
+- 原型链的实现：把A构造函数的`prototype`指向**B的实例**，B的实例的`[[prototype]]/__proto__`又是指向B构造函数的`Prototype`，B的`Prototype`中的[[prototype]]指向`Object`的`Prototype`（因任何对象都是`Object`的实例）
+- 注意：实例中是`[[prototype]]`或说`__proto__`属性指向其构造函数的`Prototype`；构造函数中`prototype`属性指向`Prototype`，`Prototype`中有`[[prototype]]/__proto__`属性指向`Object`的`Prototype`。
+- 缺点：创建子类型的**实例**时，不能**向超类型**（子类型上面的构造函数）的构造函数中**传递参数**
+##借用构造函数
+利用`call()`/`apply()`实现，**实现借用**。
+```
+function Parent(name){
+    this.name=name;
+}
+function Child(){
+    Parent().call(this,"xiaolong");//使用call()变相继承，同时向超类型中传递了name参数，调用Parent像普通函数一样
+    this.age=18;//定义自有属性，相当于实例属性
+}
+```
+缺点：方法都在child构造函数中定义，函数复用不够彻底。
+##组合继承
+组合**原型链**和**借用构造函数**。在原型上定义方法，`apply()`/`call()`借用属性
+```
+function Parent(name){
+    this.name=name;
+}
+//设置Parent共有方法
+Parent.prototype.sayName(){
+    alert(this.name)
+}
+//继承(借用)Parent的属性，调用Parent像普通函数一样
+function Child(name,age){
+    Parent.call(this,name);//第二次调用Parent()，这次会覆盖第一次调用时候继承的属性
+    this.age=age;
+}
+Child.prototype=new Parent();//继承Parent的方法,第一次调用Parent()
+Child.prototype.sayAge();//设置Child共有方法
+```
+缺点：需要**两次调用**构造函数(`Parent()`).
+##原型式继承
+```
+//传入O对象，返回一个以O为原型的构造函数
+function object(o){
+    function F(){};
+    F.prototype=o;
+    F.prototype.constructor=F;//修复F的Prototype属性似乎更合适
+    return new F();
+}
+//定义Person对象
+var person={
+    name:"xiaolong",
+    friends:["frds1","frds2"]
+}
+//将对象传入function object:
+var person1=object(person);//此时person1是以person为原型的对象
+person1.__proto__.constructor=person;//需要手动修复Prototype对象中的constructor属性
+person1.name="xiaol";//覆盖原型中的name属性
+person1.friends.push["frds3"];//这里操作的是person1的Prototype
+
+var person2=object(person);//此时person2是以person为原型的对象
+person2.name="xiaoll";//覆盖原型中的name属性
+person2.friend.push["frds4"];//这里操作的是person2的Prototype
+
+alert(person.friend);//"frd1,frd2,frd3,frd4"，说明person对象作为Prototype是能够被公用
+//缺点：需要有一个现成的对象作为基础！！！！！！！！！
+```
+这种方法实现继承**比较完美**，所以**ES5**规范了一个方法：
+Object.create(`传入的对象作为原型`[，`为返回的对象定义的新属性`])
+```
+var person1=Object.create(person,{
+                name:{
+                value:"xiaolonglong"
+                }
+            })
+//此时，person1对象的Prototype为person，有自己的属性name，覆盖了person(原型)中的name
+person1.__proto__.constructor=person;//需要手动修复Prototype对象中的constructor属性
+alert(person1.name);//"xiaolonglong"
+alert(person1.friends);//"frd1,frd2"
+```
+##寄生式继承
+##寄生组合式继承(廖雪峰教程中的原型继承)
+这种方式不仅能够给`Parent`传递参数，又不需要多次调用`Parent()`实用而完美
+```
+//继承父构造函数的属性，以便复用，其实我们需要继承他的原型就可以了，把原型弄出来，赋值给子类就ok了
+function inheritPrototype(child,parent){
+    var chilidPrototype=object(parent.prototype);//父**构造函数原型**的属性和方法复制给一个变量
+    child.prototype=childPrototype;//让子的原型指向上面的变量
+    prototype.constructor=child;//因为child的Prototype被重写，这里弱弱的修复下，太TM机智了
+}
+```
+```
+//父，定义属性
+function Parent(name){
+    this.name=name;
+    this.colors=["red","blue","green"];
+}
+//父Prototype，定义方法
+Parent.prototype.sayName(){
+    alert(this.name);
+}
+//这里传递了name参数给Parent()，并得到了name属性
+//不要在Parent()上定义属性
+function Child(name,age){
+    Parent.call(this,name);
+    this.age=age:
+}
+//子的prototype属性指向F()的Prototype，而F()的Prototype又指向父的Prototype，得到父的方法
+inheritPrototype(Child,Parent);
+//定义子自己的Protyotype方法，实际是写在F()上的方法
+Child.prototype.sayAge=function(){
+    alert(this.age);
+}
+```
+##class继承
+```
+//父类
+class Student {
+    constructor(name) {
+        this.name = name;
+    }//这里面都是属性
+
+    hello() {//这里的方法木有function字样，以示区分
+        alert('Hello, ' + this.name + '!');
+    }
+}
+//子类
+class PrimaryStudent extends Student {
+  constructor(name,grade){
+    super(name);
+    this.grade=grade;
+  }
+  myGrade(){
+    alert(this.grade);
+  }
+}
+//实例化类--->创建对象
+var PrimaryStudent1=new PrimaryStudent("kitty","baby");
+```
